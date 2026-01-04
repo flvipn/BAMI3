@@ -13,7 +13,7 @@ namespace Iepan_Flaviu_Lab4.Controllers
     {
         private readonly AppDbContext _context;
 
-        // 2. Creezi constructorul (FĂRĂ ASTA AI EROAREA CU _context)
+        // scapam de eroare _context
         public PredictionController(AppDbContext context)
         {
             _context = context;
@@ -58,25 +58,22 @@ namespace Iepan_Flaviu_Lab4.Controllers
         [HttpGet]
         public IActionResult Time()
         {
-            // Folosim numele complet pentru a evita confuzia cu PricePredictionModel
+            //evita confuzia cu PricePredictionModel
             var model = new Iepan_Flaviu_Lab4.TimePredictionModel.ModelInput();
             return View(model);
         }
 
-        // 2. ACESTA ESTE POST - Când apeși pe butonul de calcul
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult Time(Iepan_Flaviu_Lab4.TimePredictionModel.ModelInput input)
         {
-            // 1. Setăm manual valorile lipsă pentru ca motorul ML să nu primească null
+            // valori manuale pt ca motorul ML sa nu fie null
             input.Payment_type = "CRD";
-            // input.Fare_amount = 0; // Adaugă și asta dacă primești eroare și pentru fare_amount
 
-            // 2. Eliminăm erorile de validare pentru câmpurile pe care le-am completat manual
+            // 2. elimina erorile de validare
             ModelState.Remove("Payment_type");
             // ModelState.Remove("Fare_amount");
 
-            // 3. Acum verificăm validarea
             if (!ModelState.IsValid)
             {
                 return View(input);
