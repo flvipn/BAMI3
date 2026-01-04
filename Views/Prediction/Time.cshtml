@@ -1,0 +1,64 @@
+﻿@model Iepan_Flaviu_Lab4.TimePredictionModel.ModelInput
+
+@{
+    ViewData["Title"] = "Time Prediction";
+}
+
+<h2>Estimate Taxi Trip Duration</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="Time" method="post" class="form-horizontal">
+            @Html.AntiForgeryToken()
+
+            <div asp-validation-summary="All" class="text-danger"></div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Vendor_id" class="control-label">Vendor ID</label>
+                <select asp-for="Vendor_id" class="form-control">
+                    <option value="VTS">VTS</option>
+                    <option value="CMT">CMT</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Rate_code" class="control-label"></label>
+                <select asp-for="Rate_code" class="form-control">
+                    <option value="">-- Select rate code --</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+                <span asp-validation-for="Rate_code" class="text-danger"></span>
+            </div>
+
+
+            <div class="form-group mb-3">
+                <label asp-for="Passenger_count" class="control-label">Passenger Count</label>
+                <input asp-for="Passenger_count" type="number" class="form-control" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Trip_distance" class="control-label">Trip Distance (miles)</label>
+                <input asp-for="Trip_distance" type="number" step="0.01" class="form-control" />
+            </div>
+
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Estimate Duration</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-md-6">
+        @if (ViewBag.Duration != null)
+        {
+            <div class="alert alert-success mt-4">
+                <h4>Rezultat:</h4>
+                <p>Durata estimată: <strong>@String.Format("{0:0.##}", ViewBag.Duration) secunde</strong></p>
+            </div>
+        }
+    </div>
+</div>
