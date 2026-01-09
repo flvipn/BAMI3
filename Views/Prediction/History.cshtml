@@ -1,29 +1,165 @@
 ﻿@using Iepan_Flaviu_Lab4.Models.History
-
 @model IEnumerable<PredictionHistory>
+
+@{
+    ViewData["Title"] = "Istoric Predicții";
+}
+
 <h2>Istoric predicții</h2>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Data</th>
-            <th>Pasageri</th>
-            <th>Distanță</th>
-            <th>Timp (sec)</th>
-            <th>Tip plată</th>
-            <th>Preț prezis</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var item in Model)
-        {
+<hr />
+
+<form method="get" asp-controller="Prediction" asp-action="History" class="p-3 border rounded bg-light mb-4">
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Tip plată</label>
+            <select name="paymentType" class="form-select">
+                <option value="">-- Toate --</option>
+                <option value="CRD" selected="@(ViewBag.CurrentPaymentType == "CRD")">Card (CRD)</option>
+                <option value="CSH" selected="@(ViewBag.CurrentPaymentType == "CSH")">Cash (CSH)</option>
+                <option value="Unknown" selected="@(ViewBag.CurrentPaymentType == "Unknown")">Necunoscut</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Preț minim</label>
+            <input type="number" step="0.01" name="minPrice" value="@ViewBag.CurrentMinPrice" class="form-control" placeholder="0.00" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Preț maxim</label>
+            <input type="number" step="0.01" name="maxPrice" value="@ViewBag.CurrentMaxPrice" class="form-control" placeholder="100.00" />
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Sortare după dată</label>
+            <select name="sortOrder" class="form-select">
+                <option value="DateDesc" selected="@(ViewBag.CurrentSort == "DateDesc" || ViewBag.CurrentSort == null)">Cele mai noi (Desc)</option>
+                <option value="DateAsc" selected="@(ViewBag.CurrentSort == "DateAsc")">Cele mai vechi (Asc)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label fw-bold">De la data:</label>
+            <input type="date" name="startDate"
+                   value="@(ViewBag.CurrentStartDate != null ? ((DateTime)ViewBag.CurrentStartDate).ToString("yyyy-MM-dd") : "")"
+                   class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Până la data:</label>
+            <input type="date" name="endDate"
+                   value="@(ViewBag.CurrentEndDate != null ? ((DateTime)ViewBag.CurrentEndDate).ToString("yyyy-MM-dd") : "")"
+                   class="form-control" />
+        </div>
+
+        <div class="col-md-6 align-self-end text-end">
+            <div class="btn-group w-100" role="group">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-filter"></i> Aplică Filtre & Sortare
+                </button>
+                <a asp-action="History" class="btn btn-outline-secondary">Resetare</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
             <tr>
-                <td>@item.CreatedAt</td>
-                <td>@item.PassengerCount</td>
-                <td>@item.TripDistance</td>
-                <td>@item.TripTimeInSecs</td>
-                <td>@item.PaymentType</td>
-                <td>@item.PredictedPrice</td>
+                <th>Data</th>
+                <th>Pasageri</th>
+                <th>Distanță</th>
+                <th>Timp (sec)</th>
+                <th>Tip plată</th>
+                <th>
+                    Preț prezis
+                    <span class="d-inline-flex flex-column ms-1" style="font-size: 0.8em; line-height: 1;">
+                        <a asp-action="History"
+                           asp-route-paymentType="@ViewBag.CurrentPaymentType"
+                           asp-route-minPrice="@ViewBag.CurrentMinPrice"
+                           asp-route-maxPrice="@ViewBag.CurrentMaxPrice"
+                           asp-route-startDate="@(ViewBag.CurrentStartDate != null ? ((DateTime)ViewBag.CurrentStartDate).ToString("yyyy-MM-dd") : "")"
+                           asp-route-endDate="@(ViewBag.CurrentEndDate != null ? ((DateTime)ViewBag.CurrentEndDate).ToString("yyyy-MM-dd") : "")"
+                           asp-route-sortOrder="price_asc"
+                           class="text-decoration-none @(ViewBag.CurrentSort == "price_asc" ? "text-warning" : "text-white")">
+                            ▲
+                        </a>
+
+                        <a asp-action="History"
+                           asp-route-paymentType="@ViewBag.CurrentPaymentType"
+                           asp-route-minPrice="@ViewBag.CurrentMinPrice"
+                           asp-route-maxPrice="@ViewBag.CurrentMaxPrice"
+                           asp-route-startDate="@(ViewBag.CurrentStartDate != null ? ((DateTime)ViewBag.CurrentStartDate).ToString("yyyy-MM-dd") : "")"
+                           asp-route-endDate="@(ViewBag.CurrentEndDate != null ? ((DateTime)ViewBag.CurrentEndDate).ToString("yyyy-MM-dd") : "")"
+                           asp-route-sortOrder="price_desc"
+                           class="text-decoration-none @(ViewBag.CurrentSort == "price_desc" ? "text-warning" : "text-white")">
+                            ▼
+                        </a>
+                    </span>
+                </th>
+                <th>Acțiuni</th>
             </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="7" class="text-center text-muted">Nu s-au găsit predicții conform filtrelor.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.CreatedAt.ToString("g")</td>
+                        <td>@item.PassengerCount</td>
+                        <td>@item.TripDistance</td>
+                        <td>@item.TripTimeInSecs</td>
+                        <td>
+                            @if (item.PaymentType == "CRD")
+                            {
+                                <span class="badge bg-success">Card</span>
+                            }
+                            else
+                            {
+
+                                <span class="badge bg-secondary">@item.PaymentType</span>
+                            }
+                        </td>
+                        <td><strong>@item.PredictedPrice.ToString("0.00") $</strong></td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deletePrediction(@item.Id)">Șterge</button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        //pentru a apela API-ul de ștergere direct din tabel
+        async function deletePrediction(id) {
+            if(confirm('Ești sigur că vrei să ștergi această înregistrare?')) {
+                try {
+                    
+                    const response = await fetch(`/api/PredictionApi/${id}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        
+                        window.location.reload();
+                    } else {
+                        alert('Eroare la ștergere.');
+                    }
+                } catch (error) {
+                    console.error('Eroare:', error);
+                }
+            }
         }
-    </tbody>
-</table>
+    </script>
+}

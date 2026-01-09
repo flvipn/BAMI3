@@ -47,12 +47,66 @@ namespace Iepan_Flaviu_Lab4.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> History()
+        public async Task<IActionResult> History(string? paymentType,
+float? minPrice,
+float? maxPrice,
+DateTime? startDate,
+DateTime? endDate,
+string? sortOrder)
         {
-            var history = await _context.PredictionHistories
-            .OrderByDescending(p => p.CreatedAt)
-            .ToListAsync();
-            return View(history);
+            var query = _context.PredictionHistories.AsQueryable();
+            if (!string.IsNullOrEmpty(paymentType))
+            {
+                query = query.Where(p => p.PaymentType == paymentType);
+            }
+            if (minPrice.HasValue)
+            {
+                query = query.Where(p => p.PredictedPrice >= minPrice.Value);
+            }
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(p => p.PredictedPrice <= maxPrice.Value);
+            }
+            if (startDate.HasValue)
+            {
+                // mai mare sau egal cu data de inceput
+                query = query.Where(p => p.CreatedAt >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                // mai mic sau egal cu data de sfarsit
+                DateTime endDateFixed = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(p => p.CreatedAt <= endDateFixed);
+            }
+
+            // --- SORTARE ---
+            ViewBag.CurrentSort = sortOrder;
+            switch (sortOrder)
+            {
+                case "price_asc":
+                    query = query.OrderBy(x => x.PredictedPrice); // pret asc
+                    break;
+                case "price_desc":
+                    query = query.OrderByDescending(x => x.PredictedPrice); // pret desc
+                    break;
+                case "DateAsc":
+                    query = query.OrderBy(x => x.CreatedAt); // data asc
+                    break;
+                default:
+                    //cele mai noi primele
+                    query = query.OrderByDescending(x => x.CreatedAt);
+                    break;
+            }
+
+            ViewBag.CurrentPaymentType = paymentType;
+            ViewBag.CurrentMinPrice = minPrice;
+            ViewBag.CurrentMaxPrice = maxPrice;
+            ViewBag.CurrentStartDate = startDate;
+            ViewBag.CurrentEndDate = endDate;
+            var result = await query.ToListAsync();
+            return View(result);
+
         }
 
         [HttpGet]
