@@ -1,11 +1,10 @@
 ﻿using Iepan_Flaviu_Lab4.Data;
+using Iepan_Flaviu_Lab4.Models;
 using Iepan_Flaviu_Lab4.Models.History;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.ML;
 using static Iepan_Flaviu_Lab4.PricePredictionModel;
-
-
 
 namespace Iepan_Flaviu_Lab4.Controllers
 {
@@ -13,20 +12,21 @@ namespace Iepan_Flaviu_Lab4.Controllers
     {
         private readonly AppDbContext _context;
 
-        // scapam de eroare _context
         public PredictionController(AppDbContext context)
         {
             _context = context;
         }
+
         public async Task<IActionResult> Price(ModelInput input)
         {
             // Load the model
             MLContext mlContext = new MLContext();
-            // Create predection engine related to the loaded train model
-            ITransformer mlModel =
-           mlContext.Model.Load(@"C:\HDD\Facultate\An 1\Semestru 1\Covaci\Laboratoare\Iepan_Flaviu_Lab4\PricePredictionModel.mlnet", out var modelInputSchema);
-            var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput,
-           ModelOutput>(mlModel);
+
+            // ATENTIE: Asigură-te că path-ul este corect pe mașina ta
+            ITransformer mlModel = mlContext.Model.Load(@"C:\HDD\Facultate\An 1\Semestru 1\Covaci\Laboratoare\Iepan_Flaviu_Lab4\PricePredictionModel.mlnet", out var modelInputSchema);
+
+            var predEngine = mlContext.Model.CreatePredictionEngine<ModelInput, ModelOutput>(mlModel);
+
             // Try model on sample data to predict fair price
             ModelOutput result = predEngine.Predict(input);
             ViewBag.Price = result.Score;
@@ -47,12 +47,7 @@ namespace Iepan_Flaviu_Lab4.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> History(string? paymentType,
-float? minPrice,
-float? maxPrice,
-DateTime? startDate,
-DateTime? endDate,
-string? sortOrder)
+        public async Task<IActionResult> History(string? paymentType, float? minPrice, float? maxPrice, DateTime? startDate, DateTime? endDate, string? sortOrder)
         {
             var query = _context.PredictionHistories.AsQueryable();
             if (!string.IsNullOrEmpty(paymentType))
@@ -69,13 +64,11 @@ string? sortOrder)
             }
             if (startDate.HasValue)
             {
-                // mai mare sau egal cu data de inceput
                 query = query.Where(p => p.CreatedAt >= startDate.Value);
             }
 
             if (endDate.HasValue)
             {
-                // mai mic sau egal cu data de sfarsit
                 DateTime endDateFixed = endDate.Value.Date.AddDays(1).AddTicks(-1);
                 query = query.Where(p => p.CreatedAt <= endDateFixed);
             }
@@ -85,16 +78,15 @@ string? sortOrder)
             switch (sortOrder)
             {
                 case "price_asc":
-                    query = query.OrderBy(x => x.PredictedPrice); // pret asc
+                    query = query.OrderBy(x => x.PredictedPrice);
                     break;
                 case "price_desc":
-                    query = query.OrderByDescending(x => x.PredictedPrice); // pret desc
+                    query = query.OrderByDescending(x => x.PredictedPrice);
                     break;
                 case "DateAsc":
-                    query = query.OrderBy(x => x.CreatedAt); // data asc
+                    query = query.OrderBy(x => x.CreatedAt);
                     break;
                 default:
-                    //cele mai noi primele
                     query = query.OrderByDescending(x => x.CreatedAt);
                     break;
             }
@@ -106,13 +98,11 @@ string? sortOrder)
             ViewBag.CurrentEndDate = endDate;
             var result = await query.ToListAsync();
             return View(result);
-
         }
 
         [HttpGet]
         public IActionResult Time()
         {
-            //evita confuzia cu PricePredictionModel
             var model = new Iepan_Flaviu_Lab4.TimePredictionModel.ModelInput();
             return View(model);
         }
@@ -121,12 +111,8 @@ string? sortOrder)
         [ValidateAntiForgeryToken]
         public IActionResult Time(Iepan_Flaviu_Lab4.TimePredictionModel.ModelInput input)
         {
-            // valori manuale pt ca motorul ML sa nu fie null
             input.Payment_type = "CRD";
-
-            // 2. elimina erorile de validare
             ModelState.Remove("Payment_type");
-            // ModelState.Remove("Fare_amount");
 
             if (!ModelState.IsValid)
             {
@@ -135,6 +121,7 @@ string? sortOrder)
 
             try
             {
+                // ATENTIE: Asigură-te că path-ul este corect pe mașina ta
                 string modelPath = @"C:\HDD\Facultate\An 1\Semestru 1\Covaci\Laboratoare\Iepan_Flaviu_Lab4\TimePredictionModel.mlnet";
                 MLContext mlContext = new MLContext();
                 ITransformer mlModel = mlContext.Model.Load(modelPath, out var modelInputSchema);
@@ -151,6 +138,78 @@ string? sortOrder)
 
             return View(input);
         }
+
+        [HttpGet]
+        public async Task<IActionResult> Dashboard(DateTime? fromDate, DateTime? toDate)
+        {
+            // Construim interogarea de bază
+            var query = _context.PredictionHistories.AsQueryable();
+
+            // Aplicăm filtrele dacă există
+            if (fromDate.HasValue)
+            {
+                query = query.Where(p => p.CreatedAt.Date >= fromDate.Value.Date);
+            }
+            if (toDate.HasValue)
+            {
+                query = query.Where(p => p.CreatedAt.Date <= toDate.Value.Date);
+            }
+
+            // ATENȚIE: Folosim variabila 'query' pentru toate calculele de mai jos, NU _context.PredictionHistories direct.
+
+            // 1. Numărul total de predicții (filtrat)
+            var totalPredictions = await query.CountAsync();
+
+            // 2. Preț mediu per tip de plată (filtrat)
+            var paymentTypeStats = await query
+                .GroupBy(p => p.PaymentType)
+                .Select(g => new PaymentTypeStat
+                {
+                    PaymentType = g.Key,
+                    AveragePrice = g.Average(x => x.PredictedPrice),
+                    Count = g.Count()
+                })
+                .ToListAsync();
+
+            // 3. Distribuția prețurilor pe intervale (filtrat)
+            var allPredictions = await query
+                .Select(p => p.PredictedPrice)
+                .ToListAsync();
+
+            var buckets = new List<PriceBucketStat>
+            {
+                new PriceBucketStat { Label = "0 - 10" },
+                new PriceBucketStat { Label = "10 - 20" },
+                new PriceBucketStat { Label = "20 - 30" },
+                new PriceBucketStat { Label = "30 - 50" },
+                new PriceBucketStat { Label = "> 50" }
+            };
+
+            foreach (var price in allPredictions)
+            {
+                if (price < 10)
+                    buckets[0].Count++;
+                else if (price < 20)
+                    buckets[1].Count++;
+                else if (price < 30)
+                    buckets[2].Count++;
+                else if (price < 50)
+                    buckets[3].Count++;
+                else
+                    buckets[4].Count++;
+            }
+
+            // 4. Construim ViewModel-ul
+            var vm = new DashboardViewModel
+            {
+                TotalPredictions = totalPredictions,
+                PaymentTypeStats = paymentTypeStats,
+                PriceBuckets = buckets,
+                FromDate = fromDate,
+                ToDate = toDate
+            };
+
+            return View(vm);
+        }
     }
 }
-
